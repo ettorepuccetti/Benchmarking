@@ -24,6 +24,44 @@ public class WoCoServer {
 	private HashMap<Integer, StringBuilder> buffer;
 	private HashMap<Integer, HashMap<String, Integer>> results;
 	
+
+
+	public static String deleteTag (String line) {
+		StringBuilder result = new StringBuilder();
+		
+		// since the input from clients start at random position in the document, we don't know
+		// if we are starting reading from inside a tag or not, until the first angular parenteses.
+		boolean tagOpened;
+		int j = 0;
+		char cstart = line.charAt(j);
+		while (cstart != '<' && cstart != '>' && j<line.length()) {
+			j++;
+			cstart = line.charAt(j);
+		}
+		// if I've read a '>' it means a tag block is closing, so I'm starting reading from inside a tag block
+		if (cstart == '>') tagOpened = true;
+		else tagOpened = false;
+		
+		//starting again, now we know if we are in a tag block or not.
+		for( int i=0; i<line.length(); i++) {
+			char cc = line.charAt(i);
+			if (cc == '<') {
+				tagOpened = true;
+				continue;
+			}
+			if (cc == '>') { 
+				tagOpened = false;
+				continue;
+			}
+			if (!tagOpened) {
+				result.append(cc);
+			}
+		}
+		return result.toString();
+	}
+
+
+
 	/**
 	 * Performs the word count on a document. It first converts the document to 
 	 * lower case characters and then extracts words by considering "a-z" english characters
