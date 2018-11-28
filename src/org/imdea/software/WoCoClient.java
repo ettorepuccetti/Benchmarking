@@ -200,6 +200,11 @@ public class WoCoClient {
 
 	public static void main(String[] args) throws UnknownHostException, IOException, InterruptedException {
 		
+		// String debug = WoCoClient.generateDocument(109523, 0);
+		// String noTag = WoCoServer.deleteTag(debug);
+		// System.out.println(noTag);
+		// System.exit(0);
+
 		//reading in parameters
 		if (args.length<4) {
 			System.out.println("Usage: <servername> <serverport> <documentsize(KiB)> <opcount(x1000)> [<seed>]");

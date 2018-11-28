@@ -1,8 +1,9 @@
 {
     "configurations": [
+
         {
             "type": "java",
-            "name": "CodeLens (Launch) - WoCoClient",
+            "name": "WoCoClient",
             "request": "launch",
             "cwd": "${workspaceFolder}",
             "console": "internalConsole",
