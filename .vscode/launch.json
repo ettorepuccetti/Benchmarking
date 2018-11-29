@@ -1,15 +1,24 @@
 {
     "configurations": [
-
+        {
+            "type": "java",
+            "name": "WoCoServer",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "console": "internalConsole",
+            "stopOnEntry": false,
+            "mainClass": "org.imdea.software.WoCoServer",
+            "args": "localhost 3333 true 1"
+        },
         {
             "type": "java",
             "name": "WoCoClient",
             "request": "launch",
             "cwd": "${workspaceFolder}",
-            "console": "internalConsole",
+            "console": "integratedTerminal",
             "stopOnEntry": false,
             "mainClass": "org.imdea.software.WoCoClient",
-            "args": ""
+            "args": "localhost 3333 109 1 0"
         }
     ]
 }

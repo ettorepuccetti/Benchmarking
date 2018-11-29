@@ -20,12 +20,19 @@ import java.util.Set;
 public class WoCoServer {
 	
 	public static final char SEPARATOR = '$';
+	private static boolean CLEAN;
 	
 	private HashMap<Integer, StringBuilder> buffer;
 	private HashMap<Integer, HashMap<String, Integer>> results;
 	
 
-
+	/**
+	 * Reads an (HTML) document as a String, it extract the plain text and return it as a String,
+	 * removing any content between the angular parenteses.
+	 * It does not make any assumption about starting from inside a tag block or not.
+	 * @param line The document encoded as a string.
+	 * @return the line cleaned from the HTML tags.
+	 */
 	public static String deleteTag (String line) {
 		StringBuilder result = new StringBuilder();
 		
@@ -71,11 +78,12 @@ public class WoCoServer {
 	 * @param wc A HashMap to store the results in.
 	 */
 	public static void doWordCount(String line, HashMap<String, Integer> wc) {
-		String ucLine = line.toLowerCase();
+		String cleanLine = CLEAN ? deleteTag(line) : line;
+		String ucLine = cleanLine.toLowerCase();
 		StringBuilder asciiLine = new StringBuilder();
 		
 		char lastAdded = ' ';
-		for (int i=0; i<line.length(); i++) {
+		for (int i=0; i<cleanLine.length(); i++) {
 			char cc = ucLine.charAt(i);
 			if ((cc>='a' && cc<='z') || (cc==' ' && lastAdded!=' ')) {
 				asciiLine.append(cc);
@@ -142,7 +150,8 @@ public class WoCoServer {
 			if (indexNL==0) {
 				System.out.println("SEP@"+indexNL+" bufdata:\n"+bufData);
 			}
-			
+			// TODO: ask what is he doing here... And if the word count is reset for every new document.
+			// answer: the record in result associated to ClientID is removed after every invocation of serializeResult()
 			if (rest != null) {
 				System.out.println("more than one line: \n"+rest);
 				try {
@@ -205,15 +214,9 @@ public class WoCoServer {
 		boolean cMode = Boolean.parseBoolean(args[2]);
 		int threadCount = Integer.parseInt(args[3]);
 		
-		if (cMode==true) {
-			//TODO: will have to implement cleaning from HTML tags
-			System.out.println("FEATURE NOT IMPLEMENTED");
-			System.exit(0);
-
-		}
+		CLEAN = cMode;
 		
 		if (threadCount>1) {
-			//TODO: will have to implement multithreading
 			System.out.println("FEATURE NOT IMPLEMENTED");
 			System.exit(0);
 
@@ -286,4 +289,3 @@ public class WoCoServer {
 	}
 
 }
-
