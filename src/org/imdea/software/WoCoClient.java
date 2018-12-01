@@ -151,7 +151,7 @@ public class WoCoClient {
 		
 		float elapsedSeconds = (float) ((currTime-timeLastPrint)/1000000000.0);
 		
-		if (elapsedSeconds<0.1 && withPercentiles==false) {
+		if (elapsedSeconds<1 && withPercentiles==false) {
 			return;
 		}
 		

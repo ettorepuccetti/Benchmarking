@@ -12,19 +12,69 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.Collections;
 
 public class WoCoServer {
 	
 	public static final char SEPARATOR = '$';
 	private static boolean CLEAN;
+	private static final double MLN = 1000000.0;
 	
 	private HashMap<Integer, StringBuilder> buffer;
 	private HashMap<Integer, HashMap<String, Integer>> results;
-	
+
+	private static HashMap<Integer, ArrayList<Float>> readingTimes;
+	private static HashMap<Integer, ArrayList<Float>> cleaningTimes;
+	private static HashMap<Integer, ArrayList<Float>> countingTimes;
+	private static HashMap<Integer, ArrayList<Float>> serializingTimes;
+
+	public void initStat () {
+		readingTimes = new HashMap<>();
+		cleaningTimes = new HashMap<>();
+		countingTimes = new HashMap<>();
+		serializingTimes = new HashMap<>();
+	}
+
+	public static void printSingleStats (HashMap<Integer, ArrayList<Float>> stat) {
+		
+		ArrayList<Float> respTime = new ArrayList<>();
+		for (int clientId : stat.keySet()) {
+			for (float value : stat.get(clientId))
+				respTime.add(value);
+		}
+		Collections.sort(respTime);
+
+		System.out.print("\n");
+		for (int p=1; p<=100; p++) {
+			System.out.print(p+","+respTime.get(respTime.size()*p/100-1));
+			if (p!=100) {
+				System.out.print("\n");
+			}
+		}
+		System.out.println();
+	}
+
+	public static void printStats () {
+		System.out.println("-----");
+		System.out.print("Reading time percentiles [ms]: ");
+		printSingleStats(readingTimes);
+		System.out.println("\n-----");
+		System.out.print("Cleaning time percentiles [ms]: ");
+		printSingleStats(cleaningTimes);
+		System.out.println("\n-----");
+		System.out.print("Counting time percentiles [ms]: ");
+		printSingleStats(countingTimes);
+		System.out.println("\n-----");
+		System.out.print("Serializing time percentiles [ms]: ");
+		printSingleStats(serializingTimes);
+
+	}
+
 
 	/**
 	 * Reads an (HTML) document as a String, it extract the plain text and return it as a String,
@@ -33,7 +83,11 @@ public class WoCoServer {
 	 * @param line The document encoded as a string.
 	 * @return the line cleaned from the HTML tags.
 	 */
-	public static String deleteTag (String line) {
+	public static String deleteTag (String line, int clientId) {
+		
+		// statistics - start
+		long startCleaningTime = System.nanoTime();
+
 		StringBuilder result = new StringBuilder();
 		
 		// since the input from clients start at random position in the document, we don't know
@@ -64,6 +118,13 @@ public class WoCoServer {
 				result.append(cc);
 			}
 		}
+		// statistics - end
+		if (!cleaningTimes.containsKey(clientId)) {
+			cleaningTimes.put(clientId, new ArrayList<Float>());
+		}
+		ArrayList<Float> singleClientStatistic = cleaningTimes.get(clientId);
+		singleClientStatistic.add( (float) ((System.nanoTime() - startCleaningTime) / MLN));
+
 		return result.toString();
 	}
 
@@ -77,8 +138,15 @@ public class WoCoServer {
 	 * @param line The document encoded as a string.
 	 * @param wc A HashMap to store the results in.
 	 */
-	public static void doWordCount(String line, HashMap<String, Integer> wc) {
-		String cleanLine = CLEAN ? deleteTag(line) : line;
+	public static void doWordCount(String line, HashMap<String, Integer> wc, int clientId) {
+
+
+		String cleanLine = CLEAN ? deleteTag(line, clientId) : line;
+
+		//from the WordCountTime I have to exclude the time spent cleaning the document from tags.
+		// statistics - start
+		long startCountingTime = System.nanoTime();
+
 		String ucLine = cleanLine.toLowerCase();
 		StringBuilder asciiLine = new StringBuilder();
 		
@@ -93,14 +161,18 @@ public class WoCoServer {
 		
 		String[] words = asciiLine.toString().split(" ");
 		for (String s : words) {
-			
-			
 			if (wc.containsKey(s)) {
 				wc.put(s, wc.get(s)+1);
 			} else {
 				wc.put(s, 1);
 			}
 		}
+		// statistics - end
+		if (!countingTimes.containsKey(clientId)) {
+			countingTimes.put(clientId, new ArrayList<Float>());
+		}
+		ArrayList<Float> singleClientStatistic = countingTimes.get(clientId);
+		singleClientStatistic.add( (float) ((System.nanoTime() - startCountingTime) / MLN));
 	}
 	
 	/**
@@ -109,6 +181,7 @@ public class WoCoServer {
 	public WoCoServer() {
 		buffer = new HashMap<Integer, StringBuilder>();	
 		results = new HashMap<Integer, HashMap<String, Integer>>();
+		this.initStat();
 	}
 	
 	/**
@@ -120,7 +193,7 @@ public class WoCoServer {
 	 * @param dataChunk
 	 * @return A document has been processed or not.
 	 */
-	public boolean receiveData(int clientId, String dataChunk) {
+	public boolean receiveData(int clientId, String dataChunk, long startReadingTime) {
 		
 		StringBuilder sb;
 		
@@ -140,6 +213,13 @@ public class WoCoServer {
 		if (dataChunk.indexOf(WoCoServer.SEPARATOR)>-1) {
 			//we have at least one line
 			
+			// statistics - end
+			if (!readingTimes.containsKey(clientId)) {
+				readingTimes.put(clientId, new ArrayList<Float>());
+			}
+			ArrayList<Float> singleClientStatistic = readingTimes.get(clientId);
+			singleClientStatistic.add( (float) ((System.nanoTime() - startReadingTime) / MLN));
+
 			String bufData = sb.toString();
 			
 			int indexNL = bufData.indexOf(WoCoServer.SEPARATOR);
@@ -150,8 +230,7 @@ public class WoCoServer {
 			if (indexNL==0) {
 				System.out.println("SEP@"+indexNL+" bufdata:\n"+bufData);
 			}
-			// TODO: ask what is he doing here... And if the word count is reset for every new document.
-			// answer: the record in result associated to ClientID is removed after every invocation of serializeResult()
+			// TODO: ask what is he doing here... 
 			if (rest != null) {
 				System.out.println("more than one line: \n"+rest);
 				try {
@@ -167,7 +246,7 @@ public class WoCoServer {
 			
 			//word count in line
 			HashMap<String, Integer> wc = results.get(clientId);
-			doWordCount(line, wc);
+			doWordCount(line, wc, clientId);
 			
 			
 			return true;
@@ -187,6 +266,10 @@ public class WoCoServer {
 	 */
 	public String serializeResultForClient(int clientId) {
 		if (results.containsKey(clientId)) {
+			
+			// statistics - start
+			long startSerializingTime = System.nanoTime();
+
 			StringBuilder sb = new StringBuilder();
 			HashMap<String, Integer> hm = results.get(clientId);
 			for (String key : hm.keySet()) {
@@ -195,6 +278,14 @@ public class WoCoServer {
 			}
 			results.remove(clientId);
 			sb.append("\n");
+
+			// statistics - end
+			if (!serializingTimes.containsKey(clientId)) {
+				serializingTimes.put(clientId, new ArrayList<Float>());
+			}
+			ArrayList<Float> singleClientStatistic = serializingTimes.get(clientId);
+			singleClientStatistic.add( (float) ((System.nanoTime() - startSerializingTime) / MLN));
+
 			return sb.substring(0);
 		} else {
 			return "";
@@ -222,7 +313,7 @@ public class WoCoServer {
 
 		}
 		
-		
+				
 		WoCoServer server = new WoCoServer();
 		
 		Selector selector = Selector.open(); 
@@ -235,13 +326,14 @@ public class WoCoServer {
 		serverSocket.configureBlocking(false);
  
 		int ops = serverSocket.validOps();
-		SelectionKey selectKey = serverSocket.register(selector, ops, null);
+		serverSocket.register(selector, ops, null);
  
 		// Infinite loop..
 		// Keep server running
 		ByteBuffer bb = ByteBuffer.allocate(1024*1024);
 		ByteBuffer ba;
 		
+		int i = 0;
 		while (true) {
  			
 			selector.select();
@@ -265,26 +357,33 @@ public class WoCoServer {
 					int clientId = client.hashCode();
 					
 					bb.rewind();
+
+					// statistics - start 	(it ends in receiveData() method.)
+					long startReadingTime = System.nanoTime();
+
 		            int readCnt = client.read(bb);
-		            
+					
 		            if (readCnt>0) {
-		            	String result = new String(bb.array(),0, readCnt);		            
-		            		         						
-						boolean hasResult = server.receiveData(clientId, result);
+		            	String result = new String(bb.array(),0, readCnt);		             						
+						boolean hasResult = server.receiveData(clientId, result, startReadingTime);
 						
 						if (hasResult) {
-							
+
 							ba = ByteBuffer.wrap(server.serializeResultForClient(clientId).getBytes());
 							client.write(ba);
 						}
 		            } else {
-		            	key.cancel();
-		            }
- 
-					
+						i++;
+						System.out.println("\n" + i);
+						key.cancel();
+						if (!iterator.hasNext()) {
+							printStats();
+						}
+		            }	
 				}
 				iterator.remove();
 			}
+			
 		}
 	}
 
