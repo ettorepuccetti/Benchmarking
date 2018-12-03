@@ -17,8 +17,8 @@
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "stopOnEntry": false,
-            "mainClass": "org.imdea.software.WoCoClient",
-            "args": "localhost 4444 109 1 0"
+            "mainClass": "org.imdea.software.StartClients",
+            "args": "localhost 4444 109 2 0"
         }
     ]
 }

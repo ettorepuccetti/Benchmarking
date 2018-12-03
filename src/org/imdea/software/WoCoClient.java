@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.plaf.SliderUI;
 
-public class WoCoClient {
+public class WoCoClient implements Runnable{
 	
 	private Socket sHandle;
 	private BufferedReader sInput;
@@ -27,43 +27,9 @@ public class WoCoClient {
 	private int cntSincePrint;
 	private long timeLastPrint;
 	private long timeCreate;
-	private static boolean DEBUG = false;
-	
-	/**
-	 * Function to generate a document based on the hardcoded example file. 
-	 * @param length Length of the document in bytes.
-	 * @param seed This random seed is used to start reading from different offsets
-	 * in the file every time a new document is generated. Could be useful for debugging
-	 * to return to a problematic seed.
-	 * @return Returns the document which is encoded as a String 
-	 * @throws IOException
-	 */
-	private static String generateDocument(int length, int seed) throws IOException {
-		
-        String fileName = "input.html";
-        String line = null;
-        StringBuilder sb = new StringBuilder();
-        BufferedReader br = new BufferedReader(new FileReader(fileName));
-
-        while((line = br.readLine()) != null) {
-            sb.append(line.trim()+" ");
-        }   
-
-        br.close();
-                
-        String ref = sb.toString();
-		
-		sb = new StringBuilder(length);
-		int i;
-		
-		for (i=0; i<length; i++) {
-			sb.append(ref.charAt((i+seed)%ref.length()));								
-		}
-		
-		//we need to remove all occurences of this special character! 
-		return sb.substring(0).replace(WoCoServer.SEPARATOR, '.');
-		
-	}
+	private String docu;
+	private int ops;
+	private static boolean DEBUG = false;	
 	
 	/**
 	 * Instantiates the client.
@@ -72,13 +38,16 @@ public class WoCoClient {
 	 * @throws UnknownHostException
 	 * @throws IOException
 	 */
-	public WoCoClient(String serverAddress, int serverPort) throws UnknownHostException, IOException {
+	public WoCoClient(String serverAddress, int serverPort, String docu, int ops) throws UnknownHostException, IOException {
         this.sHandle = new Socket(serverAddress, serverPort);
         this.sInput = new BufferedReader(new InputStreamReader(sHandle.getInputStream()));
         this.sOutput = new BufferedWriter(new OutputStreamWriter(sHandle.getOutputStream()));
-        this.initStats();
+		this.docu = docu;
+		this.ops = ops;
+		this.initStats();
+
 	}
-	
+
 	/**
 	 * Initializes the data structure that holds statistical information on requests. 
 	 */
@@ -198,47 +167,29 @@ public class WoCoClient {
 	
 	
 
-	public static void main(String[] args) throws UnknownHostException, IOException, InterruptedException {
-		
-		//reading in parameters
-		if (args.length<4) {
-			System.out.println("Usage: <servername> <serverport> <documentsize(KiB)> <opcount(x1000)> [<seed>]");
-			System.exit(0);
-		}
-		
-		String sName = args[0];
-		int sPort = Integer.parseInt(args[1]);
-		float dSize = Float.parseFloat(args[2])*1024;
-		int ops = Integer.parseInt(args[3])*1000;
-		int seed = (args.length==5) ? Integer.parseInt(args[4]) : (int) (Math.random()*10000);
-		
-		//We generate one document for the entire runtime of this client
-		//Otherwise the client would spend too much time generating new inputs.
-    	String docu = WoCoClient.generateDocument((int) (dSize), seed);    	
-		WoCoClient client = new WoCoClient(sName, sPort);    	
-    	
-    	//send requests to the server in a loop.    	
-		for (int rep=0; rep<ops; rep++) {
-			HashMap<String, Integer> result = client.getWordCount(docu);
-			
-			if (DEBUG==true) {
-				System.out.println(result);
-			}
-			
-			if (rep%25 == 0) {
-				//reduce the overhead of printing statistics by calling this less often
-				client.printStats(false);
-			}
-		}
+	public void run () {
+		try {    	
+			//send requests to the server in a loop.    	
+			for (int rep=0; rep<ops; rep++) {
+				HashMap<String, Integer> result = this.getWordCount(docu);
 				
-		//final printout with percentiles
-		client.printStats(true);
-		Thread.sleep(2000);
-		client.shutDown();
-
-        System.exit(0);
-
-
+				if (DEBUG==true) {
+					System.out.println(result);
+				}
+				
+				if (rep%25 == 0) {
+					//reduce the overhead of printing statistics by calling this less often
+					this.printStats(false);
+				}
+			}
+					
+			//final printout with percentiles
+			this.printStats(true);
+			this.shutDown();
+			//System.exit(0);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
-
 }

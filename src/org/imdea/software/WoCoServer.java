@@ -3,6 +3,8 @@ package org.imdea.software;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -25,13 +27,23 @@ public class WoCoServer {
 	private static boolean CLEAN;
 	private static final double MLN = 1000000.0;
 	
+	private static boolean deletedKeys = false;
+
 	private HashMap<Integer, StringBuilder> buffer;
 	private HashMap<Integer, HashMap<String, Integer>> results;
 
-	private static HashMap<Integer, ArrayList<Float>> readingTimes;
-	private static HashMap<Integer, ArrayList<Float>> cleaningTimes;
-	private static HashMap<Integer, ArrayList<Float>> countingTimes;
-	private static HashMap<Integer, ArrayList<Float>> serializingTimes;
+	public static HashMap<Integer, ArrayList<Float>> readingTimes;
+	public static HashMap<Integer, ArrayList<Float>> cleaningTimes;
+	public static HashMap<Integer, ArrayList<Float>> countingTimes;
+	public static HashMap<Integer, ArrayList<Float>> serializingTimes;
+
+	private static FileWriter fileWriterReading;
+	private static FileWriter fileWriterCleaning;
+	private static FileWriter fileWriterCounting;
+	private static FileWriter fileWriterSerializing;
+
+
+
 
 	public void initStat () {
 		readingTimes = new HashMap<>();
@@ -40,8 +52,9 @@ public class WoCoServer {
 		serializingTimes = new HashMap<>();
 	}
 
-	public static void printSingleStats (HashMap<Integer, ArrayList<Float>> stat) {
+	public static void printSingleStats (HashMap<Integer, ArrayList<Float>> stat, FileWriter fileWriter) {
 		
+
 		ArrayList<Float> respTime = new ArrayList<>();
 		for (int clientId : stat.keySet()) {
 			for (float value : stat.get(clientId))
@@ -50,29 +63,76 @@ public class WoCoServer {
 		Collections.sort(respTime);
 
 		System.out.print("\n");
-		for (int p=1; p<=100; p++) {
-			System.out.print(p+","+respTime.get(respTime.size()*p/100-1));
-			if (p!=100) {
-				System.out.print("\n");
+		System.out.println("total records: " + respTime.size());
+		float sum = 0;
+		for (float elem : respTime) {
+			sum += elem;
+		}
+		float avg = sum/respTime.size();
+		try {
+			System.out.println("Average [ms]: " + avg + "\npercentiles [ms]: ");
+			fileWriter.write("average," +avg+"\n");
+			for (int p=1; p<=100; p++) {
+				System.out.print(p+","+respTime.get(respTime.size()*p/100-1));
+				fileWriter.write(p+","+respTime.get(respTime.size()*p/100-1));
+				if (p!=100) {
+					System.out.print("\n");
+					fileWriter.write("\n");
+				}
 			}
+		}
+		catch (IOException e) {
+			e.printStackTrace();
 		}
 		System.out.println();
 	}
 
 	public static void printStats () {
-		System.out.println("-----");
-		System.out.print("Reading time percentiles [ms]: ");
-		printSingleStats(readingTimes);
-		System.out.println("\n-----");
-		System.out.print("Cleaning time percentiles [ms]: ");
-		printSingleStats(cleaningTimes);
-		System.out.println("\n-----");
-		System.out.print("Counting time percentiles [ms]: ");
-		printSingleStats(countingTimes);
-		System.out.println("\n-----");
-		System.out.print("Serializing time percentiles [ms]: ");
-		printSingleStats(serializingTimes);
+		try {
+			File fileReading = new File ("/Users/ettorepuccetti/log/readingtime.csv");
+			if (!fileReading.exists()) {
+				fileReading.createNewFile();
+			}
+			System.out.println("-----");
+			System.out.print("Reading time");
+			fileWriterReading = new FileWriter(fileReading.getAbsoluteFile(), false);
+			printSingleStats(readingTimes, fileWriterReading);
+			fileWriterReading.close();
 
+			File fileCleaning = new File ("/Users/ettorepuccetti/log/cleaningtime.csv");
+			if (!fileCleaning.exists()) {
+				fileCleaning.createNewFile();
+			}
+			System.out.println("\n-----");
+			System.out.print("Cleaning time");
+			fileWriterCleaning = new FileWriter(fileCleaning.getAbsoluteFile(), false);
+			printSingleStats(cleaningTimes, fileWriterCleaning);
+			fileWriterCleaning.close();
+
+			File fileCounting = new File ("/Users/ettorepuccetti/log/countingtime.csv");
+			if (!fileCounting.exists()) {
+				fileCounting.createNewFile();
+			}
+			System.out.println("\n-----");
+			System.out.print("Counting time");
+			fileWriterCounting = new FileWriter(fileCounting.getAbsoluteFile(), false);
+			printSingleStats(countingTimes, fileWriterCounting);
+			fileWriterCounting.close();
+
+			File fileSerializing = new File ("/Users/ettorepuccetti/log/serializingtime.csv");
+			if (!fileSerializing.exists()) {
+				fileSerializing.createNewFile();
+			}
+			System.out.println("\n-----");
+			System.out.print("Serializing time");
+			fileWriterSerializing = new FileWriter(fileSerializing.getAbsoluteFile(), false);
+			printSingleStats(serializingTimes, fileWriterSerializing);
+			fileWriterSerializing.close();
+
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 
@@ -143,7 +203,6 @@ public class WoCoServer {
 
 		String cleanLine = CLEAN ? deleteTag(line, clientId) : line;
 
-		//from the WordCountTime I have to exclude the time spent cleaning the document from tags.
 		// statistics - start
 		long startCountingTime = System.nanoTime();
 
@@ -175,6 +234,8 @@ public class WoCoServer {
 		singleClientStatistic.add( (float) ((System.nanoTime() - startCountingTime) / MLN));
 	}
 	
+
+
 	/**
 	 * Constructor of the server.
 	 */
@@ -333,9 +394,12 @@ public class WoCoServer {
 		ByteBuffer bb = ByteBuffer.allocate(1024*1024);
 		ByteBuffer ba;
 		
-		int i = 0;
 		while (true) {
- 			
+			
+			if (deletedKeys) {
+				printStats();
+			}
+
 			selector.select();
  
 			Set<SelectionKey> readyKeys = selector.selectedKeys();
@@ -351,8 +415,7 @@ public class WoCoServer {
  
 					client.register(selector, SelectionKey.OP_READ);
 					System.out.println("Connection Accepted: " + client.getLocalAddress() + "\n");
- 
-				} else if (key.isReadable()) {										
+				} else if (key.isReadable()) {								
 					SocketChannel client = (SocketChannel) key.channel();
 					int clientId = client.hashCode();
 					
@@ -373,12 +436,8 @@ public class WoCoServer {
 							client.write(ba);
 						}
 		            } else {
-						i++;
-						System.out.println("\n" + i);
 						key.cancel();
-						if (!iterator.hasNext()) {
-							printStats();
-						}
+						deletedKeys = true;
 		            }	
 				}
 				iterator.remove();
