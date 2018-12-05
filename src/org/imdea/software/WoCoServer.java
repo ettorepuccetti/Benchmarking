@@ -18,31 +18,38 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Set;
 import java.util.Collections;
+
+import org.imdea.software.Request;
+import org.imdea.software.Dispatcher;
 
 public class WoCoServer {
 	
 	public static final char SEPARATOR = '$';
 	private static boolean CLEAN;
-	private static final double MLN = 1000000.0;
+	private static int NTHREAD;
+	private static int NCLIENT;
+
+	public final double MLN = 1000000.0;
 	
-	private static boolean deletedKeys = false;
+	private static int deletedKeys = 0;
 
 	private HashMap<Integer, StringBuilder> buffer;
-	private HashMap<Integer, HashMap<String, Integer>> results;
 
-	public static HashMap<Integer, ArrayList<Float>> readingTimes;
-	public static HashMap<Integer, ArrayList<Float>> cleaningTimes;
-	public static HashMap<Integer, ArrayList<Float>> countingTimes;
-	public static HashMap<Integer, ArrayList<Float>> serializingTimes;
+	public HashMap<Integer, ArrayList<Float>> readingTimes;
+	public HashMap<Integer, ArrayList<Float>> cleaningTimes;
+	public HashMap<Integer, ArrayList<Float>> countingTimes;
+	public HashMap<Integer, ArrayList<Float>> serializingTimes;
 
-	private static FileWriter fileWriterReading;
-	private static FileWriter fileWriterCleaning;
-	private static FileWriter fileWriterCounting;
-	private static FileWriter fileWriterSerializing;
+	private FileWriter fileWriterReading;
+	private FileWriter fileWriterCleaning;
+	private FileWriter fileWriterCounting;
+	private FileWriter fileWriterSerializing;
 
-
+	private Dispatcher dispatcher;
+	public LinkedList<Request> requestQueue;
 
 
 	public void initStat () {
@@ -52,9 +59,8 @@ public class WoCoServer {
 		serializingTimes = new HashMap<>();
 	}
 
-	public static void printSingleStats (HashMap<Integer, ArrayList<Float>> stat, FileWriter fileWriter) {
+	public void printSingleStats (HashMap<Integer, ArrayList<Float>> stat, FileWriter fileWriter) {
 		
-
 		ArrayList<Float> respTime = new ArrayList<>();
 		for (int clientId : stat.keySet()) {
 			for (float value : stat.get(clientId))
@@ -87,7 +93,7 @@ public class WoCoServer {
 		System.out.println();
 	}
 
-	public static void printStats () {
+	public void printStats () {
 		try {
 			File fileReading = new File ("/Users/ettorepuccetti/log/readingtime.csv");
 			if (!fileReading.exists()) {
@@ -143,7 +149,7 @@ public class WoCoServer {
 	 * @param line The document encoded as a string.
 	 * @return the line cleaned from the HTML tags.
 	 */
-	public static String deleteTag (String line, int clientId) {
+	public String deleteTag (String line, int clientId) {
 		
 		// statistics - start
 		long startCleaningTime = System.nanoTime();
@@ -187,52 +193,6 @@ public class WoCoServer {
 
 		return result.toString();
 	}
-
-
-
-	/**
-	 * Performs the word count on a document. It first converts the document to 
-	 * lower case characters and then extracts words by considering "a-z" english characters
-	 * only (e.g., "alpha-beta" become "alphabeta"). The code breaks the text up into
-	 * words based on spaces.
-	 * @param line The document encoded as a string.
-	 * @param wc A HashMap to store the results in.
-	 */
-	public static void doWordCount(String line, HashMap<String, Integer> wc, int clientId) {
-
-
-		String cleanLine = CLEAN ? deleteTag(line, clientId) : line;
-
-		// statistics - start
-		long startCountingTime = System.nanoTime();
-
-		String ucLine = cleanLine.toLowerCase();
-		StringBuilder asciiLine = new StringBuilder();
-		
-		char lastAdded = ' ';
-		for (int i=0; i<cleanLine.length(); i++) {
-			char cc = ucLine.charAt(i);
-			if ((cc>='a' && cc<='z') || (cc==' ' && lastAdded!=' ')) {
-				asciiLine.append(cc);
-				lastAdded = cc;
-			}
-		}
-		
-		String[] words = asciiLine.toString().split(" ");
-		for (String s : words) {
-			if (wc.containsKey(s)) {
-				wc.put(s, wc.get(s)+1);
-			} else {
-				wc.put(s, 1);
-			}
-		}
-		// statistics - end
-		if (!countingTimes.containsKey(clientId)) {
-			countingTimes.put(clientId, new ArrayList<Float>());
-		}
-		ArrayList<Float> singleClientStatistic = countingTimes.get(clientId);
-		singleClientStatistic.add( (float) ((System.nanoTime() - startCountingTime) / MLN));
-	}
 	
 
 
@@ -240,8 +200,12 @@ public class WoCoServer {
 	 * Constructor of the server.
 	 */
 	public WoCoServer() {
-		buffer = new HashMap<Integer, StringBuilder>();	
-		results = new HashMap<Integer, HashMap<String, Integer>>();
+		buffer = new HashMap<Integer, StringBuilder>();
+		requestQueue = new LinkedList<>();
+		this.dispatcher = new Dispatcher(NTHREAD, this);
+		Thread dispatcherThread = new Thread(this.dispatcher);
+		dispatcherThread.setName("dispatcher worker thread");
+		dispatcherThread.start();
 		this.initStat();
 	}
 	
@@ -254,13 +218,9 @@ public class WoCoServer {
 	 * @param dataChunk
 	 * @return A document has been processed or not.
 	 */
-	public boolean receiveData(int clientId, String dataChunk, long startReadingTime) {
+	public boolean receiveData(int clientId, String dataChunk, long startReadingTime, SocketChannel client) {
 		
 		StringBuilder sb;
-		
-		if (!results.containsKey(clientId)) {
-			results.put(clientId, new HashMap<String, Integer>());
-		}
 		
 		if (!buffer.containsKey(clientId)) {
 			sb = new StringBuilder();
@@ -304,12 +264,16 @@ public class WoCoServer {
 				buffer.put(clientId, new StringBuilder());
 			}
 			
-			
 			//word count in line
-			HashMap<String, Integer> wc = results.get(clientId);
-			doWordCount(line, wc, clientId);
-			
-			
+			String cleanLine = CLEAN ? deleteTag(line, clientId) : line;
+			requestQueue.add(new Request(cleanLine, client, clientId));
+			try {
+				synchronized (requestQueue) {
+					requestQueue.notify();
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 			return true;
 			
 		} else {
@@ -317,47 +281,12 @@ public class WoCoServer {
 		}
 		
 	}
-	
-	/**
-	 * Returns a serialized version of the word count associated with the last
-	 * processed document for a given client. If not called before processing a new
-	 * document, the result is overwritten by the new one.
-	 * @param clientId
-	 * @return
-	 */
-	public String serializeResultForClient(int clientId) {
-		if (results.containsKey(clientId)) {
-			
-			// statistics - start
-			long startSerializingTime = System.nanoTime();
 
-			StringBuilder sb = new StringBuilder();
-			HashMap<String, Integer> hm = results.get(clientId);
-			for (String key : hm.keySet()) {
-				sb.append(key+",");
-				sb.append(hm.get(key)+",");
-			}
-			results.remove(clientId);
-			sb.append("\n");
-
-			// statistics - end
-			if (!serializingTimes.containsKey(clientId)) {
-				serializingTimes.put(clientId, new ArrayList<Float>());
-			}
-			ArrayList<Float> singleClientStatistic = serializingTimes.get(clientId);
-			singleClientStatistic.add( (float) ((System.nanoTime() - startSerializingTime) / MLN));
-
-			return sb.substring(0);
-		} else {
-			return "";
-		}
-	}
-	
 
 	public static void main(String[] args) throws IOException {
 		
-		if (args.length!=4) {
-			System.out.println("Usage: <listenaddress> <listenport> <cleaning> <threadcount>");
+		if (args.length!=4 && args.length !=5) {
+			System.out.println("Usage: <listenaddress> <listenport> <cleaning> <threadcount> [<nclients> default:1]");
 			System.exit(0);
 		}
 		
@@ -366,17 +295,13 @@ public class WoCoServer {
 		boolean cMode = Boolean.parseBoolean(args[2]);
 		int threadCount = Integer.parseInt(args[3]);
 		
+		NCLIENT = (args.length == 5) ? Integer.parseInt(args[4]) : 1;
 		CLEAN = cMode;
-		
-		if (threadCount>1) {
-			System.out.println("FEATURE NOT IMPLEMENTED");
-			System.exit(0);
+		NTHREAD = threadCount;
 
-		}
-		
 				
 		WoCoServer server = new WoCoServer();
-		
+
 		Selector selector = Selector.open(); 
  		
 		ServerSocketChannel serverSocket = ServerSocketChannel.open();
@@ -392,12 +317,11 @@ public class WoCoServer {
 		// Infinite loop..
 		// Keep server running
 		ByteBuffer bb = ByteBuffer.allocate(1024*1024);
-		ByteBuffer ba;
 		
 		while (true) {
 			
-			if (deletedKeys) {
-				printStats();
+			if (deletedKeys == NCLIENT) {
+				server.printStats();
 			}
 
 			selector.select();
@@ -415,7 +339,8 @@ public class WoCoServer {
  
 					client.register(selector, SelectionKey.OP_READ);
 					System.out.println("Connection Accepted: " + client.getLocalAddress() + "\n");
-				} else if (key.isReadable()) {								
+
+				} else if (key.isReadable()) {
 					SocketChannel client = (SocketChannel) key.channel();
 					int clientId = client.hashCode();
 					
@@ -427,17 +352,17 @@ public class WoCoServer {
 		            int readCnt = client.read(bb);
 					
 		            if (readCnt>0) {
-		            	String result = new String(bb.array(),0, readCnt);		             						
-						boolean hasResult = server.receiveData(clientId, result, startReadingTime);
+						String result = new String(bb.array(),0, readCnt);       						
+						boolean hasResult = server.receiveData(clientId, result, startReadingTime, client);
 						
-						if (hasResult) {
-
-							ba = ByteBuffer.wrap(server.serializeResultForClient(clientId).getBytes());
-							client.write(ba);
-						}
+						//TODO: la risposta la deve rimandare il thread worker!!
+						// 		quindi per ogni worker avrò un buffer, una hashmap per i risultati,
+						//		un array per i tempi, ecc.
+						//		quando il server riceve chiusure dai client, allora rimette insieme i tempi..
+						//		ancora non ho capito come chiudere il server...
 		            } else {
 						key.cancel();
-						deletedKeys = true;
+						deletedKeys++;
 		            }	
 				}
 				iterator.remove();

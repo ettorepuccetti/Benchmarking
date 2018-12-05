@@ -29,7 +29,7 @@ public class WoCoClient implements Runnable{
 	private long timeCreate;
 	private String docu;
 	private int ops;
-	private static boolean DEBUG = false;	
+	private static boolean DEBUG = true;	
 	
 	/**
 	 * Instantiates the client.
@@ -169,12 +169,13 @@ public class WoCoClient implements Runnable{
 
 	public void run () {
 		try {    	
-			//send requests to the server in a loop.    	
+			//send requests to the server in a loop.
+			HashMap<String, Integer> result = new HashMap<>();  	
 			for (int rep=0; rep<ops; rep++) {
-				HashMap<String, Integer> result = this.getWordCount(docu);
+				result = this.getWordCount(docu);
 				
 				if (DEBUG==true) {
-					System.out.println(result);
+					//System.out.println(result);
 				}
 				
 				if (rep%25 == 0) {
@@ -182,7 +183,7 @@ public class WoCoClient implements Runnable{
 					this.printStats(false);
 				}
 			}
-					
+			System.out.println(result);
 			//final printout with percentiles
 			this.printStats(true);
 			this.shutDown();

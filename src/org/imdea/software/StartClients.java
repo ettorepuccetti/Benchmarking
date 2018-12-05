@@ -20,8 +20,7 @@ import javax.swing.plaf.SliderUI;
 
 public class StartClients {
 
-	private static int NCLIENT = 3;
-    //public CountDownLatch latch = new CountDownLatch(NCLIENT);
+	private static int NCLIENT = 4;
 
     /**
 	 * Function to generate a document based on the hardcoded example file. 
@@ -57,10 +56,6 @@ public class StartClients {
 		//we need to remove all occurences of this special character! 
 		return sb.substring(0).replace(WoCoServer.SEPARATOR, '.');
 		
-    }
-
-    public void startClient () {
-
     }
     
 

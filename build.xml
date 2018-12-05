@@ -17,6 +17,9 @@
   <jar jarfile="${dist}/WoCoServer.jar" basedir="${build}">
     <manifest>
       <attribute name="Main-Class" value="org.imdea.software.WoCoServer"/>
+      <attribute name="workerCount" value="org.imdea.software.Dispatcher"/>
+        <attribute name="Counter" value="org.imdea.software.Counter"/>
+      <attribute name="Request" value="org.imdea.software.Request"/>
       <attribute name="Class-Path" value="."/>
     </manifest>
   </jar>
