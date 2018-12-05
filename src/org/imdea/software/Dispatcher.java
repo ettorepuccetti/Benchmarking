@@ -32,20 +32,27 @@ public class Dispatcher implements Runnable{
 	private WoCoServer server;
 	LinkedList<Request> requestQueue;
 	ArrayList<Thread> threadArray;
+
+	// I need a map instead of array for avoiding auto-resize and indexOutOfBound exception.
 	HashMap<Integer,Request> requestMap;
+	
+	ArrayList<Object> lockArray;
 
     public Dispatcher (int nWorker, WoCoServer server) {
 		this.nWorker = nWorker;
 		this.server = server;
 		this.requestQueue = server.requestQueue;
 		this.threadArray = new ArrayList<>(nWorker);
-		this.requestMap = new HashMap<>();
+		this.requestMap = new HashMap<>(nWorker);
+		this.lockArray = new ArrayList<>(nWorker);
 		for (int i=0; i<nWorker; i++) {
-			Counter counter = new Counter(this.server, requestMap, i);
+			Object lock = new Object();
+			Counter counter = new Counter(this.server, requestMap, i, lock);
 			Thread thread = new Thread(counter);
 			thread.start();
-			threadArray.add(thread);
+			threadArray.add(i,thread);
 			requestMap.put(i, null);
+			lockArray.add(i, lock);
 		}
     }
 
@@ -55,17 +62,17 @@ public class Dispatcher implements Runnable{
 			int clientId = request.clientId;
 			int indexThread = clientId%nWorker;
 			//Thread thread = threadArray.get(clientId%nWorker);
-
+			Object lock = lockArray.get(indexThread);
 			// until thread has not processed his request, I have to wait, then I will receive a signal from the Thread 
 			try {
-				synchronized (requestMap.get(indexThread)) {
+				synchronized (lock) {
 					while (requestMap.get(indexThread) != null) {
-						requestMap.wait();
+						lock.wait();
 					}
 					// once I'm out of the while-wait loop, I can push him a new request.
 					requestMap.put(indexThread, request);
 					// requestMap had sent me a signal, means it is WAITING for new request. I have to wake him up !
-					requestMap.notifyAll();
+					lock.notify();
 				}
 			} catch (InterruptedException e) {
 				e.printStackTrace();

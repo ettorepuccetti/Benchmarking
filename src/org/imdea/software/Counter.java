@@ -32,27 +32,30 @@ public class Counter implements Runnable {
     private HashMap<Integer, HashMap<String, Integer>> results;
     public HashMap<Integer,Request> requestMap;
     private int index;
+    public Object lock;
 
 
-    public Counter (WoCoServer server, HashMap<Integer,Request> requestMap, int index) {
+    public Counter (WoCoServer server, HashMap<Integer,Request> requestMap, int index, Object lock) {
         this.server = server;
         //this.requestQueue = requestQueue;
         this.results = new HashMap<>();
         this.requestMap = requestMap;
         this.index = index;
+        this.lock = lock;
+
     }
 
     public void run () {
 
         while (true) {
             try {
-                synchronized(requestMap) {
+                synchronized(lock) {
                     while (requestMap.get(index) == null) {
-                            requestMap.wait();
-                        }
+                        lock.wait();
+                    }
                     processRequest();
                         // telling to the dispatcher that I'm done and I'm coming back to wait.
-                    requestMap.notifyAll();
+                    lock.notify();
                 }
             }
             catch (InterruptedException e) {
