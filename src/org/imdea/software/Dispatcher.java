@@ -33,9 +33,10 @@ public class Dispatcher implements Runnable{
 	LinkedList<Request> requestQueue;
 	ArrayList<Thread> threadArray;
 
-	// I need a map instead of array for avoiding auto-resize and indexOutOfBound exception.
+	// I need a map instead of array for avoiding auto-resize and indexOutOfBound exception when I set request to null.
 	HashMap<Integer,Request> requestMap;
 	
+	// I also need a single lock-object for every thread, for avoiding blocking all the process for a single thread.
 	ArrayList<Object> lockArray;
 
     public Dispatcher (int nWorker, WoCoServer server) {
@@ -61,17 +62,19 @@ public class Dispatcher implements Runnable{
 			Request request = requestQueue.remove();
 			int clientId = request.clientId;
 			int indexThread = clientId%nWorker;
-			//Thread thread = threadArray.get(clientId%nWorker);
 			Object lock = lockArray.get(indexThread);
-			// until thread has not processed his request, I have to wait, then I will receive a signal from the Thread 
+			
 			try {
 				synchronized (lock) {
+					// until thread has not processed his request, I have to wait, then I will receive a signal from the Thread 
 					while (requestMap.get(indexThread) != null) {
 						lock.wait();
 					}
-					// once I'm out of the while-wait loop, I can push him a new request.
+					// If I got out of the loop , it means that the thread had sent me a signal, or he wasn't busy
+					// He is WAITING for new request. I can push him a new request.
 					requestMap.put(indexThread, request);
-					// requestMap had sent me a signal, means it is WAITING for new request. I have to wake him up !
+					
+					// Since he is waiting, I have also to wake him up!
 					lock.notify();
 				}
 			} catch (InterruptedException e) {
@@ -83,13 +86,14 @@ public class Dispatcher implements Runnable{
 	public void run () {
 		while (true) {
 			try {
-				while (requestQueue.isEmpty()) {
-					synchronized (requestQueue) { 
+				synchronized (requestQueue) {
+					while (requestQueue.isEmpty()) {
 						requestQueue.wait();
 					}
-				}
-				// I have been notified by the method server, something in the queue has been added.
-				processRequests();
+					// I have been notified by the server's method, something in the queue has been added.
+					// let's process them
+					processRequests();
+				}	
 			} catch (InterruptedException e ){
 				e.printStackTrace();
 			}

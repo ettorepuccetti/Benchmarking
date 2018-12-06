@@ -266,9 +266,10 @@ public class WoCoServer {
 			
 			//word count in line
 			String cleanLine = CLEAN ? deleteTag(line, clientId) : line;
-			requestQueue.add(new Request(cleanLine, client, clientId));
+			
 			try {
 				synchronized (requestQueue) {
+					requestQueue.add(new Request(cleanLine, client, clientId));
 					requestQueue.notify();
 				}
 			} catch (Exception e) {

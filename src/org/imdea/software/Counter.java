@@ -33,6 +33,7 @@ public class Counter implements Runnable {
     public HashMap<Integer,Request> requestMap;
     private int index;
     public Object lock;
+    private Request request;
 
 
     public Counter (WoCoServer server, HashMap<Integer,Request> requestMap, int index, Object lock) {
@@ -42,6 +43,7 @@ public class Counter implements Runnable {
         this.requestMap = requestMap;
         this.index = index;
         this.lock = lock;
+
 
     }
 
@@ -53,10 +55,16 @@ public class Counter implements Runnable {
                     while (requestMap.get(index) == null) {
                         lock.wait();
                     }
-                    processRequest();
-                        // telling to the dispatcher that I'm done and I'm coming back to wait.
+                    // getting the request-slot empty, for allowing the dispatcher to send me a new request.
+                    extractRequest();
+            
                     lock.notify();
                 }
+                // processing the request without blocking the dispatcher.
+                // time saving in case the dispatcher have two requests for the same worker, and the third one 
+                // for a different worker. He can send the second request to the worker while he is still
+                // processing the first one, and then going ahead with the queue.
+                processRequest();
             }
             catch (InterruptedException e) {
                 e.printStackTrace();
@@ -67,9 +75,12 @@ public class Counter implements Runnable {
         }
     }
 
-    public void processRequest() {
+    public void extractRequest () {
+        this.request = requestMap.get(index);
+        requestMap.remove(index);
+    }
 
-        Request request = requestMap.get(index);
+    public void processRequest() {
         if (request != null) {
 
             int clientId = request.clientId;
@@ -120,8 +131,7 @@ public class Counter implements Runnable {
             } catch (IOException e ) {
                 e.printStackTrace();
             }
-            requestMap.remove(index);
-
+            this.request = null;
         } else {
             System.out.println(" richiesta nulla !!");
         }
