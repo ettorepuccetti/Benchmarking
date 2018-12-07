@@ -33,7 +33,6 @@ public class Counter implements Runnable {
     public HashMap<Integer,Request> requestMap;
     private int index;
     public Object lock;
-    private Request request;
 
 
     public Counter (WoCoServer server, HashMap<Integer,Request> requestMap, int index, Object lock) {
@@ -43,8 +42,6 @@ public class Counter implements Runnable {
         this.requestMap = requestMap;
         this.index = index;
         this.lock = lock;
-
-
     }
 
     public void run () {
@@ -55,16 +52,9 @@ public class Counter implements Runnable {
                     while (requestMap.get(index) == null) {
                         lock.wait();
                     }
-                    // getting the request-slot empty, for allowing the dispatcher to send me a new request.
-                    extractRequest();
-            
+                    processRequest();            
                     lock.notify();
                 }
-                // processing the request without blocking the dispatcher.
-                // time saving in case the dispatcher have two requests for the same worker, and the third one 
-                // for a different worker. He can send the second request to the worker while he is still
-                // processing the first one, and then going ahead with the queue.
-                processRequest();
             }
             catch (InterruptedException e) {
                 e.printStackTrace();
@@ -75,12 +65,11 @@ public class Counter implements Runnable {
         }
     }
 
-    public void extractRequest () {
-        this.request = requestMap.get(index);
-        requestMap.remove(index);
-    }
 
     public void processRequest() {
+        
+        Request request = requestMap.get(index);
+        
         if (request != null) {
 
             int clientId = request.clientId;
@@ -91,7 +80,6 @@ public class Counter implements Runnable {
                 results.put(clientId, new HashMap<String, Integer>());
             }
             HashMap<String, Integer> wc = results.get(clientId);
-
 
             // statistics - start
             long startCountingTime = System.nanoTime();
@@ -131,7 +119,7 @@ public class Counter implements Runnable {
             } catch (IOException e ) {
                 e.printStackTrace();
             }
-            this.request = null;
+            requestMap.remove(index);
         } else {
             System.out.println(" richiesta nulla !!");
         }

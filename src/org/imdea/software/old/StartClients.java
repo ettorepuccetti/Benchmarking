@@ -77,7 +77,7 @@ public class StartClients {
         String docu = generateDocument((int) (dSize), seed);
 
         for( int i=0; i<NCLIENT; i++) {
-            WoCoClient client = new WoCoClient(sName, sPort, docu, ops);
+            SingleClient client = new SingleClient(sName, sPort, docu, ops);
             Thread clientThread = new Thread(client);
             clientThread.start();
         }

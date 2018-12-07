@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -14,11 +15,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.LinkedList;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.io.File;
+import java.io.FileWriter;
 
 import javax.swing.plaf.SliderUI;
 
-public class WoCoClient implements Runnable{
+public class WoCoClient {
 	
 	private Socket sHandle;
 	private BufferedReader sInput;
@@ -27,9 +31,48 @@ public class WoCoClient implements Runnable{
 	private int cntSincePrint;
 	private long timeLastPrint;
 	private long timeCreate;
-	private String docu;
-	private int ops;
-	private static boolean DEBUG = true;	
+	private File fileClientInterval;
+	private File fileClientPercentile;
+
+	private FileWriter fileWriterInterval;
+	private FileWriter fileWriterPercentile;
+	private static boolean DEBUG = false;
+	
+	/**
+	 * Function to generate a document based on the hardcoded example file. 
+	 * @param length Length of the document in bytes.
+	 * @param seed This random seed is used to start reading from different offsets
+	 * in the file every time a new document is generated. Could be useful for debugging
+	 * to return to a problematic seed.
+	 * @return Returns the document which is encoded as a String 
+	 * @throws IOException
+	 */
+	private static String generateDocument(int length, int seed) throws IOException {
+		
+        String fileName = "input.html";
+        String line = null;
+        StringBuilder sb = new StringBuilder();
+        BufferedReader br = new BufferedReader(new FileReader(fileName));
+
+        while((line = br.readLine()) != null) {
+            sb.append(line.trim()+" ");
+        }   
+
+        br.close();
+                
+        String ref = sb.toString();
+		
+		sb = new StringBuilder(length);
+		int i;
+		
+		for (i=0; i<length; i++) {
+			sb.append(ref.charAt((i+seed)%ref.length()));								
+		}
+		
+		//we need to remove all occurences of this special character! 
+		return sb.substring(0).replace(WoCoServer.SEPARATOR, '.');
+		
+	}
 	
 	/**
 	 * Instantiates the client.
@@ -38,16 +81,22 @@ public class WoCoClient implements Runnable{
 	 * @throws UnknownHostException
 	 * @throws IOException
 	 */
-	public WoCoClient(String serverAddress, int serverPort, String docu, int ops) throws UnknownHostException, IOException {
+	public WoCoClient(String serverAddress, int serverPort) throws UnknownHostException, IOException {
         this.sHandle = new Socket(serverAddress, serverPort);
         this.sInput = new BufferedReader(new InputStreamReader(sHandle.getInputStream()));
-        this.sOutput = new BufferedWriter(new OutputStreamWriter(sHandle.getOutputStream()));
-		this.docu = docu;
-		this.ops = ops;
-		this.initStats();
-
+		this.sOutput = new BufferedWriter(new OutputStreamWriter(sHandle.getOutputStream()));
+		long pid = ProcessHandle.current().pid();
+		fileClientInterval = new File ("/Users/ettorepuccetti/log/clientInterval"+pid+".csv");
+		fileClientPercentile = new File ("/Users/ettorepuccetti/log/clientPercent"+pid+".csv");
+			if (!fileClientInterval.exists()) {
+				fileClientInterval.createNewFile();
+			}
+			if (!fileClientPercentile.exists()) {
+				fileClientPercentile.createNewFile();
+			}
+        this.initStats();
 	}
-
+	
 	/**
 	 * Initializes the data structure that holds statistical information on requests. 
 	 */
@@ -120,35 +169,50 @@ public class WoCoClient implements Runnable{
 		
 		float elapsedSeconds = (float) ((currTime-timeLastPrint)/1000000000.0);
 		
-		if (elapsedSeconds<1 && withPercentiles==false) {
+		if (elapsedSeconds<0.5 && withPercentiles==false) {
 			return;
 		}
-		
+
 		float tput = cntSincePrint/elapsedSeconds;
-		System.out.println("Interval time [s], Throughput [ops/s]: "+elapsedSeconds + ", "+ tput);
-		timeLastPrint = currTime;
-		cntSincePrint = 0;
 		
-		
-		if (withPercentiles) {
-			//sorting for pctiles
-			Collections.sort(respTime);
+		try {
+			fileWriterInterval = new FileWriter(fileClientInterval.getAbsoluteFile(), true);
+			fileWriterPercentile = new FileWriter(fileClientPercentile.getAbsoluteFile(), true);
+			System.out.println("Interval time [s], Throughput [ops/s]: "+elapsedSeconds + ", "+ tput);
+			fileWriterInterval.write(elapsedSeconds + ", "+ tput+"\n");
+			timeLastPrint = currTime;
+			cntSincePrint = 0;
 			
-			System.out.println("-----");
 			
-			elapsedSeconds = (float) ((currTime-timeCreate)/1000000000.0);
-			tput = respTime.size()/elapsedSeconds;
-			System.out.println("Total time [s], Throughput [ops/s]: "+elapsedSeconds + ", "+ tput);
-			
-			System.out.print("Response time percentiles [ms]: ");
-			System.out.print("\n");
-			for (int p=1; p<=100; p++) {
-				System.out.print(p+","+respTime.get(respTime.size()*p/100-1));
-				if (p!=100) {
-					System.out.print("\n");
+			if (withPercentiles) {
+				//sorting for pctiles
+				Collections.sort(respTime);
+				
+				System.out.println("------"+"\n");
+				
+				elapsedSeconds = (float) ((currTime-timeCreate)/1000000000.0);
+				tput = respTime.size()/elapsedSeconds;
+				System.out.println("Total time [s], Throughput [ops/s]: "+elapsedSeconds + ", "+ tput);
+				fileWriterInterval.write(elapsedSeconds + ", "+ tput+"\n");
+
+				System.out.print("Response time percentiles [ms]: ");
+				fileWriterPercentile.write("Percentile, ms\n");
+
+				System.out.print("\n");
+				for (int p=1; p<=100; p++) {
+					System.out.print(p+","+respTime.get(respTime.size()*p/100-1));
+					fileWriterPercentile.write(p+","+respTime.get(respTime.size()*p/100-1));
+					if (p!=100) {
+						fileWriterPercentile.write("\n");
+						System.out.print("\n");
+					}
 				}
+				System.out.println();
 			}
-			System.out.println();
+			fileWriterInterval.close();
+			fileWriterPercentile.close();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 		
 	}
@@ -167,30 +231,47 @@ public class WoCoClient implements Runnable{
 	
 	
 
-	public void run () {
-		try {    	
-			//send requests to the server in a loop.
-			HashMap<String, Integer> result = new HashMap<>();  	
-			for (int rep=0; rep<ops; rep++) {
-				result = this.getWordCount(docu);
-				
-				if (DEBUG==true) {
-					//System.out.println(result);
-				}
-				
-				if (rep%25 == 0) {
-					//reduce the overhead of printing statistics by calling this less often
-					this.printStats(false);
-				}
+	public static void main(String[] args) throws UnknownHostException, IOException, InterruptedException {
+		
+		//reading in parameters
+		if (args.length<4) {
+			System.out.println("Usage: <servername> <serverport> <documentsize(KiB)> <opcount(x1000)> [<seed>]");
+			System.exit(0);
+		}
+		
+		String sName = args[0];
+		int sPort = Integer.parseInt(args[1]);
+		float dSize = Float.parseFloat(args[2])*1024;
+		int ops = Integer.parseInt(args[3])*1000;
+		int seed = (args.length==5) ? Integer.parseInt(args[4]) : (int) (Math.random()*10000);
+		
+		//We generate one document for the entire runtime of this client
+		//Otherwise the client would spend too much time generating new inputs.
+    	String docu = WoCoClient.generateDocument((int) (dSize), seed);    	
+		WoCoClient client = new WoCoClient(sName, sPort);    	
+    	
+    	//send requests to the server in a loop.    	
+		for (int rep=0; rep<ops; rep++) {
+			HashMap<String, Integer> result = client.getWordCount(docu);
+			
+			if (DEBUG==true) {
+				System.out.println(result);
 			}
-			System.out.println(result);
-			//final printout with percentiles
-			this.printStats(true);
-			this.shutDown();
-			//System.exit(0);
+			
+			if (rep%25 == 0) {
+				//reduce the overhead of printing statistics by calling this less often
+				client.printStats(false);
+			}
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-		}
+				
+		//final printout with percentiles
+		client.printStats(true);
+		Thread.sleep(2000);
+		client.shutDown();
+
+        System.exit(0);
+
+
 	}
+
 }

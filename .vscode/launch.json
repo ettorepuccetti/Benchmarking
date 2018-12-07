@@ -8,7 +8,8 @@
             "console": "internalConsole",
             "stopOnEntry": false,
             "mainClass": "org.imdea.software.WoCoServer",
-            "args": "localhost 4444 true 3 4"
+            //<listenaddress> <listenport> <cleaning> <threadcount> [<nclients> default:1]
+            "args": "localhost 4444 true 2"
         },
         {
             "type": "java",
@@ -17,8 +18,9 @@
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "stopOnEntry": false,
-            "mainClass": "org.imdea.software.StartClients",
-            "args": "localhost 4444 109 4 0"
+            "mainClass": "org.imdea.software.WoCoClient",
+            //<servername> <serverport> <documentsize(KiB)> <opcount(x1000)> [<seed>]
+            "args": "localhost 4444 50 6"
         }
     ]
 }

@@ -318,12 +318,10 @@ public class WoCoServer {
 		// Infinite loop..
 		// Keep server running
 		ByteBuffer bb = ByteBuffer.allocate(1024*1024);
+
+		int connectedClient = 0;
 		
 		while (true) {
-			
-			if (deletedKeys == NCLIENT) {
-				server.printStats();
-			}
 
 			selector.select();
  
@@ -340,6 +338,8 @@ public class WoCoServer {
  
 					client.register(selector, SelectionKey.OP_READ);
 					System.out.println("Connection Accepted: " + client.getLocalAddress() + "\n");
+
+					connectedClient++;
 
 				} else if (key.isReadable()) {
 					SocketChannel client = (SocketChannel) key.channel();
@@ -364,6 +364,10 @@ public class WoCoServer {
 		            } else {
 						key.cancel();
 						deletedKeys++;
+						if (deletedKeys == connectedClient) {
+							server.printStats();
+							System.exit(0);
+						}
 		            }	
 				}
 				iterator.remove();
