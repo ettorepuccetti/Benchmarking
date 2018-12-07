@@ -76,6 +76,7 @@ public class WoCoServer {
 		}
 		float avg = sum/respTime.size();
 		try {
+			fileWriter.write("total records: " + respTime.size());
 			System.out.println("Average [ms]: " + avg + "\npercentiles [ms]: ");
 			fileWriter.write("average," +avg+"\n");
 			for (int p=1; p<=100; p++) {
