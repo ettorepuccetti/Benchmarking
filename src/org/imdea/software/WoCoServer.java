@@ -30,7 +30,6 @@ public class WoCoServer {
 	public static final char SEPARATOR = '$';
 	private static boolean CLEAN;
 	private static int NTHREAD;
-	private static int NCLIENT;
 
 	public final double MLN = 1000000.0;
 	
@@ -50,6 +49,8 @@ public class WoCoServer {
 
 	private Dispatcher dispatcher;
 	public LinkedList<Request> requestQueue;
+
+	private String path = "log/logServer";
 
 
 	public void initStat () {
@@ -96,7 +97,10 @@ public class WoCoServer {
 
 	public void printStats () {
 		try {
-			File fileReading = new File ("/Users/ettorepuccetti/log/readingtime.csv");
+			
+			new File(path).mkdirs();
+			
+			File fileReading = new File (path+"/readingtime.csv");
 			if (!fileReading.exists()) {
 				fileReading.createNewFile();
 			}
@@ -106,7 +110,7 @@ public class WoCoServer {
 			printSingleStats(readingTimes, fileWriterReading);
 			fileWriterReading.close();
 
-			File fileCleaning = new File ("/Users/ettorepuccetti/log/cleaningtime.csv");
+			File fileCleaning = new File (path+"/cleaningtime.csv");
 			if (!fileCleaning.exists()) {
 				fileCleaning.createNewFile();
 			}
@@ -116,7 +120,7 @@ public class WoCoServer {
 			printSingleStats(cleaningTimes, fileWriterCleaning);
 			fileWriterCleaning.close();
 
-			File fileCounting = new File ("/Users/ettorepuccetti/log/countingtime.csv");
+			File fileCounting = new File (path+"/countingtime.csv");
 			if (!fileCounting.exists()) {
 				fileCounting.createNewFile();
 			}
@@ -126,7 +130,7 @@ public class WoCoServer {
 			printSingleStats(countingTimes, fileWriterCounting);
 			fileWriterCounting.close();
 
-			File fileSerializing = new File ("/Users/ettorepuccetti/log/serializingtime.csv");
+			File fileSerializing = new File (path+"/serializingtime.csv");
 			if (!fileSerializing.exists()) {
 				fileSerializing.createNewFile();
 			}
@@ -287,8 +291,8 @@ public class WoCoServer {
 
 	public static void main(String[] args) throws IOException {
 		
-		if (args.length!=4 && args.length !=5) {
-			System.out.println("Usage: <listenaddress> <listenport> <cleaning> <threadcount> [<nclients> default:1]");
+		if (args.length!=4) {
+			System.out.println("Usage: <listenaddress> <listenport> <cleaning> <threadcount>");
 			System.exit(0);
 		}
 		
@@ -297,7 +301,6 @@ public class WoCoServer {
 		boolean cMode = Boolean.parseBoolean(args[2]);
 		int threadCount = Integer.parseInt(args[3]);
 		
-		NCLIENT = (args.length == 5) ? Integer.parseInt(args[4]) : 1;
 		CLEAN = cMode;
 		NTHREAD = threadCount;
 
@@ -356,12 +359,7 @@ public class WoCoServer {
 		            if (readCnt>0) {
 						String result = new String(bb.array(),0, readCnt);       						
 						boolean hasResult = server.receiveData(clientId, result, startReadingTime, client);
-						
-						//TODO: la risposta la deve rimandare il thread worker!!
-						// 		quindi per ogni worker avrò un buffer, una hashmap per i risultati,
-						//		un array per i tempi, ecc.
-						//		quando il server riceve chiusure dai client, allora rimette insieme i tempi..
-						//		ancora non ho capito come chiudere il server...
+
 		            } else {
 						key.cancel();
 						deletedKeys++;

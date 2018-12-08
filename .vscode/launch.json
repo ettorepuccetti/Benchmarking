@@ -8,7 +8,7 @@
             "console": "internalConsole",
             "stopOnEntry": false,
             "mainClass": "org.imdea.software.WoCoServer",
-            //<listenaddress> <listenport> <cleaning> <threadcount> [<nclients> default:1]
+            //<listenaddress> <listenport> <cleaning> <threadcount>
             "args": "localhost 4444 true 2"
         },
         {
@@ -20,7 +20,7 @@
             "stopOnEntry": false,
             "mainClass": "org.imdea.software.WoCoClient",
             //<servername> <serverport> <documentsize(KiB)> <opcount(x1000)> [<seed>]
-            "args": "localhost 4444 50 6"
+            "args": "localhost 4444 10 2"
         }
     ]
 }

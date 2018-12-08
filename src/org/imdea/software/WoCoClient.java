@@ -37,6 +37,7 @@ public class WoCoClient {
 	private FileWriter fileWriterInterval;
 	private FileWriter fileWriterPercentile;
 	private static boolean DEBUG = false;
+	private String path = "log/logClient";
 	
 	/**
 	 * Function to generate a document based on the hardcoded example file. 
@@ -86,8 +87,9 @@ public class WoCoClient {
         this.sInput = new BufferedReader(new InputStreamReader(sHandle.getInputStream()));
 		this.sOutput = new BufferedWriter(new OutputStreamWriter(sHandle.getOutputStream()));
 		long pid = ProcessHandle.current().pid();
-		fileClientInterval = new File ("/Users/ettorepuccetti/log/clientInterval"+pid+".csv");
-		fileClientPercentile = new File ("/Users/ettorepuccetti/log/clientPercent"+pid+".csv");
+		new File(path).mkdirs();
+		fileClientInterval = new File (path+"/clientInterval"+pid+".csv");
+		fileClientPercentile = new File (path+"/clientPercent"+pid+".csv");
 			if (!fileClientInterval.exists()) {
 				fileClientInterval.createNewFile();
 			}
