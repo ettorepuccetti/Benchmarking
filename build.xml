@@ -23,6 +23,18 @@
       <attribute name="Class-Path" value="."/>
     </manifest>
   </jar>
+  <jar jarfile="${dist}/WoCoServerSkeleton.jar" basedir="${build}">
+    <manifest>
+      <attribute name="Main-Class" value="org.imdea.software.WoCoServerSkeleton"/>
+      <attribute name="Class-Path" value="."/>
+    </manifest>
+  </jar>
+  <jar jarfile="${dist}/WoCoServerTag.jar" basedir="${build}">
+    <manifest>
+      <attribute name="Main-Class" value="org.imdea.software.WoCoServerTag"/>
+      <attribute name="Class-Path" value="."/>
+    </manifest>
+  </jar>
   <jar jarfile="${dist}/WoCoClient.jar" basedir="${build}">
     <manifest>
       <attribute name="Main-Class" value="org.imdea.software.WoCoClient"/>

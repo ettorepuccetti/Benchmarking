@@ -70,7 +70,7 @@ public class WoCoServer {
 		Collections.sort(respTime);
 
 		System.out.print("\n");
-		System.out.println("total records: " + respTime.size());
+		//System.out.println("total records: " + respTime.size());
 		float sum = 0;
 		for (float elem : respTime) {
 			sum += elem;
@@ -78,13 +78,13 @@ public class WoCoServer {
 		float avg = sum/respTime.size();
 		try {
 			fileWriter.write("total records: " + respTime.size());
-			System.out.println("Average [ms]: " + avg + "\npercentiles [ms]: ");
+			//System.out.println("Average [ms]: " + avg + "\npercentiles [ms]: ");
 			fileWriter.write("average," +avg+"\n");
 			for (int p=1; p<=100; p++) {
-				System.out.print(p+","+respTime.get(respTime.size()*p/100-1));
+				//System.out.print(p+","+respTime.get(respTime.size()*p/100-1));
 				fileWriter.write(p+","+respTime.get(respTime.size()*p/100-1));
 				if (p!=100) {
-					System.out.print("\n");
+					//System.out.print("\n");
 					fileWriter.write("\n");
 				}
 			}
@@ -92,7 +92,7 @@ public class WoCoServer {
 		catch (IOException e) {
 			e.printStackTrace();
 		}
-		System.out.println();
+		//System.out.println();
 	}
 
 	public void printStats () {
@@ -104,8 +104,8 @@ public class WoCoServer {
 			if (!fileReading.exists()) {
 				fileReading.createNewFile();
 			}
-			System.out.println("-----");
-			System.out.print("Reading time");
+			//System.out.println("-----");
+			//System.out.print("Reading time");
 			fileWriterReading = new FileWriter(fileReading.getAbsoluteFile(), false);
 			printSingleStats(readingTimes, fileWriterReading);
 			fileWriterReading.close();
@@ -114,8 +114,8 @@ public class WoCoServer {
 			if (!fileCleaning.exists()) {
 				fileCleaning.createNewFile();
 			}
-			System.out.println("\n-----");
-			System.out.print("Cleaning time");
+			//System.out.println("\n-----");
+			//System.out.print("Cleaning time");
 			fileWriterCleaning = new FileWriter(fileCleaning.getAbsoluteFile(), false);
 			printSingleStats(cleaningTimes, fileWriterCleaning);
 			fileWriterCleaning.close();
@@ -124,8 +124,8 @@ public class WoCoServer {
 			if (!fileCounting.exists()) {
 				fileCounting.createNewFile();
 			}
-			System.out.println("\n-----");
-			System.out.print("Counting time");
+			//System.out.println("\n-----");
+			//System.out.print("Counting time");
 			fileWriterCounting = new FileWriter(fileCounting.getAbsoluteFile(), false);
 			printSingleStats(countingTimes, fileWriterCounting);
 			fileWriterCounting.close();
@@ -134,8 +134,8 @@ public class WoCoServer {
 			if (!fileSerializing.exists()) {
 				fileSerializing.createNewFile();
 			}
-			System.out.println("\n-----");
-			System.out.print("Serializing time");
+			//System.out.println("\n-----");
+			//System.out.print("Serializing time");
 			fileWriterSerializing = new FileWriter(fileSerializing.getAbsoluteFile(), false);
 			printSingleStats(serializingTimes, fileWriterSerializing);
 			fileWriterSerializing.close();
@@ -254,11 +254,11 @@ public class WoCoServer {
 			String rest = (bufData.length()>indexNL+1) ? bufData.substring(indexNL+1) : null;
 			
 			if (indexNL==0) {
-				System.out.println("SEP@"+indexNL+" bufdata:\n"+bufData);
+				//System.out.println("SEP@"+indexNL+" bufdata:\n"+bufData);
 			}
 			// TODO: ask what is he doing here... 
 			if (rest != null) {
-				System.out.println("more than one line: \n"+rest);
+				//System.out.println("more than one line: \n"+rest);
 				try {
 					System.in.read();
 				} catch (IOException e) {
@@ -292,7 +292,7 @@ public class WoCoServer {
 	public static void main(String[] args) throws IOException {
 		
 		if (args.length!=4) {
-			System.out.println("Usage: <listenaddress> <listenport> <cleaning> <threadcount>");
+			//System.out.println("Usage: <listenaddress> <listenport> <cleaning> <threadcount>");
 			System.exit(0);
 		}
 		

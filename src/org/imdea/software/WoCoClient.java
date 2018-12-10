@@ -180,7 +180,6 @@ public class WoCoClient {
 		try {
 			fileWriterInterval = new FileWriter(fileClientInterval.getAbsoluteFile(), true);
 			fileWriterPercentile = new FileWriter(fileClientPercentile.getAbsoluteFile(), true);
-			//System.out.println("Interval time [s], Throughput [ops/s]: "+elapsedSeconds + ", "+ tput);
 			fileWriterInterval.write(elapsedSeconds + ", "+ tput+"\n");
 			timeLastPrint = currTime;
 			cntSincePrint = 0;
@@ -189,27 +188,27 @@ public class WoCoClient {
 			if (withPercentiles) {
 				//sorting for pctiles
 				Collections.sort(respTime);
-				
-				//System.out.println("------"+"\n");
-				
+								
 				elapsedSeconds = (float) ((currTime-timeCreate)/1000000000.0);
 				tput = respTime.size()/elapsedSeconds;
-				//System.out.println("Total time [s], Throughput [ops/s]: "+elapsedSeconds + ", "+ tput);
+				
+				Float meanRespTime = respTime.get(0);
+				for (int i = 1; i < respTime.size(); i++) {
+					meanRespTime += respTime.get(i);
+				}
+				meanRespTime /= respTime.size();
+				
 				fileWriterInterval.write(elapsedSeconds + ", "+ tput+"\n");
+				fileWriterInterval.write(meanRespTime+"\n");
 
-				//System.out.print("Response time percentiles [ms]: ");
 				fileWriterPercentile.write("Percentile, ms\n");
 
-				//System.out.print("\n");
 				for (int p=1; p<=100; p++) {
-					//System.out.print(p+","+respTime.get(respTime.size()*p/100-1));
 					fileWriterPercentile.write(p+","+respTime.get(respTime.size()*p/100-1));
 					if (p!=100) {
 						fileWriterPercentile.write("\n");
-						//System.out.print("\n");
 					}
 				}
-				//System.out.println();
 			}
 			fileWriterInterval.close();
 			fileWriterPercentile.close();

@@ -37,7 +37,6 @@ public class Counter implements Runnable {
 
     public Counter (WoCoServer server, HashMap<Integer,Request> requestMap, int index, Object lock) {
         this.server = server;
-        //this.requestQueue = requestQueue;
         this.results = new HashMap<>();
         this.requestMap = requestMap;
         this.index = index;

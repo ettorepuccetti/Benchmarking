@@ -20,7 +20,7 @@
             "stopOnEntry": false,
             "mainClass": "org.imdea.software.WoCoClient",
             //<servername> <serverport> <documentsize(KiB)> <opcount(x1000)> [<seed>]
-            "args": "localhost 4444 10 2"
+            "args": "localhost 4444 4 10"
         }
     ]
 }
