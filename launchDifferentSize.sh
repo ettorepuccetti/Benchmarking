@@ -1,9 +1,12 @@
 #!/bin/bash
+
+mkdir log/
 mkdir size_log/
 rm log/logClient/*
 rm log/logServer/*
 
-array=( 1 2 8 16 32 64 128 256 )
+
+array=( 4 )
 
 for i in "${array[@]}"
 do
@@ -20,6 +23,6 @@ do
     mkdir size_log/$i/server
     mkdir size_log/$i/client
     mv log/logServer/* size_log/$i/server
-    mv log/logClient/clientPercent* size_log/$i/client
+    mv log/logClient/clientInterval* size_log/$i/client
     sleep 1
 done
