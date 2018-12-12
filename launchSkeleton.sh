@@ -1,14 +1,16 @@
 #!/bin/bash
 
-OPS=150
+OPS=100
 
+mkdir log/
+mkdir stored_log/
 mkdir stored_log/skeleton
 rm log/logClient/client*
 rm log/logServer/*
 
-array=(16)
+array=(6)
 
-for i in `seq 1 5`;
+for i in "${array[@]}";
 do
 	echo "Clients: $i"
     java -jar jars/WoCoServerSkeleton.jar localhost 3000 false 1 &

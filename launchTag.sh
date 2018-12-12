@@ -1,13 +1,14 @@
 #!/bin/bash
 
-OPS=4
+OPS=100
+
 mkdir log/
 mkdir stored_log/
 mkdir stored_log/tag
 rm log/logClient/client*
 rm log/logServer/*
 
-array=(80)
+array=(3 4)
 
 for i in "${array[@]}";
 do

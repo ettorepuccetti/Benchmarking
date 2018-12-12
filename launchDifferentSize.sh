@@ -6,7 +6,7 @@ rm log/logClient/*
 rm log/logServer/*
 
 
-array=( 4 )
+array=( 256 )
 
 for i in "${array[@]}"
 do
