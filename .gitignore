@@ -16,3 +16,6 @@ hs_err_pid*
 log/
 stored_log/
 size_log/
+bin/
+jars/
+moveLog.sh
