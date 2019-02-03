@@ -1,7 +1,7 @@
 # Benchmarking
 
 A client-server words count application, useful for measure some metrics of the performaces of the system.
-The client send an HTML document, and the server replies with a series of pairs <word, count>.
+The client sends an HTML document, and the server replies with a series of pairs <word, count>.
 
 ## The architecture
 
